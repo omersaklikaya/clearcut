@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>ClearCut — Arka Plan Sileceği</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Manrope:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --white: #ffffff;
+            --off: #f7f7f5;
+            --border: #e8e8e5;
+            --soft: #b0b0aa;
+            --text: #1a1a18;
+            --sub: #6b6b66;
+            --radius: 14px;
+        }
+
+        body {
+            background: var(--white);
+            color: var(--text);
+            font-family: 'Manrope', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 32px 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-family: 'Instrument Serif', serif;
+            font-size: 32px;
+            letter-spacing: -0.5px;
+        }
+
+        .logo span {
+            font-style: italic;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 64px 24px 80px;
+        }
+
+        .hero {
+            text-align: center;
+            max-width: 540px;
+            margin-bottom: 48px;
+        }
+
+        h1 {
+            font-family: 'Instrument Serif', serif;
+            font-size: clamp(38px, 6vw, 68px);
+            font-weight: 400;
+            line-height: 1.08;
+            letter-spacing: -2px;
+            margin-bottom: 16px;
+        }
+
+        h1 em {
+            font-style: italic;
+            color: var(--sub);
+        }
+
+        .hero-sub {
+            font-size: 15px;
+            color: var(--sub);
+            line-height: 1.75;
+        }
+
+        /* Model banner */
+        #modelBanner {
+            width: 100%;
+            max-width: 540px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            background: var(--off);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            color: var(--sub);
+        }
+
+        .spinner-sm {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            border: 2px solid var(--border);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        #modelBanner.ready {
+            border-color: #c8e6c9;
+            background: #f1f8f2;
+            color: #2e7d55;
+        }
+
+        #modelBanner.ready .spinner-sm {
+            display: none;
+        }
+
+        #modelBanner.ready::before {
+            content: '✓';
+            font-weight: 700;
+        }
+
+        #modelBanner.error {
+            border-color: #ffcdd2;
+            background: #fff5f5;
+            color: #c0392b;
+        }
+
+        #modelBanner.error .spinner-sm {
+            display: none;
+        }
+
+        /* Progress bar inside banner */
+        #progressWrap {
+            flex: 1;
+            display: none;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        #progressWrap.show {
+            display: flex;
+        }
+
+        #progressBar {
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        #progressFill {
+            height: 100%;
+            background: var(--text);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        #progressLabel {
+            font-size: 11px;
+            color: var(--soft);
+        }
+
+        /* Upload */
+        #uploadZone {
+            width: 100%;
+            max-width: 540px;
+            border: 1.5px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 56px 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            background: var(--off);
+            transition: border-color 0.2s, background 0.2s;
+            text-align: center;
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        #uploadZone.ready-to-use {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        #uploadZone:hover,
+        #uploadZone.drag {
+            border-color: var(--soft);
+            background: #f2f2ef;
+        }
+
+        .upload-icon svg {
+            width: 28px;
+            height: 28px;
+            stroke: var(--soft);
+        }
+
+        .upload-label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .upload-hint {
+            font-size: 12px;
+            color: var(--soft);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Result */
+        #resultView {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            width: 100%;
+            max-width: 540px;
+        }
+
+        .panels {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .panel-wrap {
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--off);
+            position: relative;
+        }
+
+        .panel-lbl {
+            position: absolute;
+            top: 10px;
+            left: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: var(--sub);
+            background: rgba(255, 255, 255, 0.88);
+            padding: 3px 8px;
+            border-radius: 6px;
+            z-index: 2;
+        }
+
+        .panel-img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: contain;
+            display: block;
+        }
+
+        .checker {
+            background-image:
+                linear-gradient(45deg, #e5e5e2 25%, transparent 25%),
+                linear-gradient(-45deg, #e5e5e2 25%, transparent 25%),
+                linear-gradient(45deg, transparent 75%, #e5e5e2 75%),
+                linear-gradient(-45deg, transparent 75%, #e5e5e2 75%);
+            background-size: 14px 14px;
+            background-position: 0 0, 0 7px, 7px -7px, -7px 0;
+            background-color: #f0f0ed;
+        }
+
+        #outputCanvas {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: contain;
+            display: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        .loading-wrap {
+            width: 100%;
+            aspect-ratio: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 2px solid var(--border);
+            border-top-color: var(--text);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            font-size: 12px;
+            color: var(--soft);
+            text-align: center;
+        }
+
+        #statusMsg {
+            font-size: 13px;
+            color: var(--sub);
+            text-align: center;
+            min-height: 18px;
+        }
+
+        #statusMsg.ok {
+            color: #2e7d55;
+        }
+
+        #statusMsg.err {
+            color: #c0392b;
+        }
+
+        .actions {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 13px 20px;
+            border-radius: 10px;
+            font-family: 'Manrope', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--text);
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #2e2e2b;
+            transform: translateY(-1px);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--sub);
+            border: 1px solid var(--border);
+        }
+
+        .btn-ghost:hover {
+            background: var(--off);
+            color: var(--text);
+        }
+
+        footer {
+            padding: 22px 48px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .footer-text {
+            font-size: 11px;
+            color: var(--soft);
+        }
+
+        .footer-dot {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+
+        @media (max-width: 600px) {
+            header {
+                padding: 22px 20px;
+            }
+
+            .logo {
+                font-size: 26px;
+            }
+
+            main {
+                padding: 36px 16px 52px;
+            }
+
+            .hero {
+                margin-bottom: 32px;
+            }
+
+            h1 {
+                font-size: clamp(30px, 9vw, 42px);
+                letter-spacing: -1.2px;
+                margin-bottom: 12px;
+            }
+
+            .hero-sub {
+                font-size: 13px;
+            }
+
+            #modelBanner {
+                padding: 13px 16px;
+                font-size: 12px;
+                gap: 10px;
+                border-radius: 12px;
+                margin-bottom: 14px;
+            }
+
+            #uploadZone {
+                padding: 36px 20px;
+                border-radius: 12px;
+                gap: 10px;
+            }
+
+            .upload-icon svg {
+                width: 24px;
+                height: 24px;
+            }
+
+            .upload-label {
+                font-size: 13px;
+            }
+
+            .upload-hint {
+                font-size: 11px;
+            }
+
+            .panels {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .panel-img,
+            #outputCanvas {
+                aspect-ratio: 4/3;
+            }
+
+            .loading-wrap {
+                aspect-ratio: 4/3;
+            }
+
+            .panel-lbl {
+                font-size: 9px;
+                padding: 2px 7px;
+            }
+
+            #resultView {
+                gap: 16px;
+            }
+
+            #statusMsg {
+                font-size: 12px;
+            }
+
+            .actions {
+                gap: 8px;
+            }
+
+            .btn {
+                padding: 14px 16px;
+                font-size: 13px;
+                border-radius: 10px;
+            }
+
+            footer {
+                padding: 18px 20px;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .footer-dot {
+                display: none;
+            }
+
+            .footer-text {
+                font-size: 11px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="logo">Clear<span>Cut</span></div>
+    </header>
+
+    <main>
+        <div class="hero">
+            <h1>Arka planı<br><em>saniyeler içinde</em> kaldır.</h1>
+            <p class="hero-sub">
+                Görsel yükle, arka plan otomatik silinsin.<br>
+                Tüm işlem cihazında gerçekleşir, hiçbir yere gönderilmez.
+            </p>
+        </div>
+
+        <div id="modelBanner">
+            <div class="spinner-sm"></div>
+            <div id="progressWrap">
+                <div id="progressBar">
+                    <div id="progressFill"></div>
+                </div>
+                <span id="progressLabel">Model indiriliyor…</span>
+            </div>
+            <span id="bannerText">Model yükleniyor, lütfen bekleyin…</span>
+        </div>
+
+        <div id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)"
+            ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+            <div class="upload-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 16V8m0 0-3 3m3-3 3 3" />
+                    <path d="M20 16.5A4.5 4.5 0 0 0 16 12H14.5A6.5 6.5 0 1 0 5.5 17.5" />
+                </svg>
+            </div>
+            <span class="upload-label">Görsel yüklemek için tıkla</span>
+            <span class="upload-hint">JPG, PNG, WEBP — maks. 10 MB</span>
+        </div>
+
+        <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" onchange="onFileSelected(event)">
+
+        <div id="resultView">
+            <div class="panels">
+                <div class="panel-wrap">
+                    <span class="panel-lbl">Orijinal</span>
+                    <img id="inputPreview" class="panel-img" alt="orijinal" referrerpolicy="no-referrer">
+                </div>
+                <div class="panel-wrap checker">
+                    <span class="panel-lbl">Sonuç</span>
+                    <div id="loadingWrap" class="loading-wrap">
+                        <div class="spinner"></div>
+                        <span class="loading-text" id="loadingText">İşleniyor…</span>
+                    </div>
+                    <canvas id="outputCanvas"></canvas>
+                </div>
+            </div>
+            <p id="statusMsg"></p>
+            <div class="actions">
+                <button class="btn btn-ghost" onclick="resetAll()">← Yeni görsel</button>
+                <button class="btn btn-primary" id="downloadBtn" disabled onclick="downloadResult()">İndir —
+                    PNG</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <span class="footer-text">Yapay zeka destekli arka plan silme</span>
+        <span class="footer-dot"></span>
+        <span class="footer-text">Tüm işlem cihazınızda gerçekleşir</span>
+    </footer>
+
+    <!-- Transformers.js — model yönetimini, indirmeyi ve önbelleği halleder -->
+    <script type="module">
+        'use strict';
+
+        import { env, AutoModel, AutoProcessor, RawImage } from
+            'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/transformers.min.js';
+
+        const MODEL_ID = 'briaai/RMBG-1.4';
+        const MAX_BYTES = 10 * 1024 * 1024;
+        const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+
+        // Transformers.js — yerel modellere bakma, sadece HF CDN
+        env.allowLocalModels = false;
+
+        let model = null;
+        let processor = null;
+        let origFile = null;
+        let resultDataUrl = null;
+
+        // ── BANNER ─────────────────────────────────────────────────────────────────
+        function setBanner(state, msg) {
+            const el = document.getElementById('modelBanner');
+            const text = document.getElementById('bannerText');
+            const prog = document.getElementById('progressWrap');
+            el.className = state; // '', 'ready', 'error'
+            text.textContent = msg;
+            text.style.display = (state === 'loading-progress') ? 'none' : '';
+            prog.className = (state === 'loading-progress') ? 'show' : '';
+            if (state !== 'loading-progress' && state !== 'ready' && state !== 'error') {
+                el.className = '';
+            }
+        }
+
+        function setProgress(pct, label) {
+            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressLabel').textContent = label;
+        }
+
+        // ── MODEL YÜKLEME ───────────────────────────────────────────────────────────
+        async function loadModel() {
+            try {
+                setBanner('', 'Model yükleniyor…');
+
+                // progress_callback ile indirme ilerlemesini takip et
+                const opts = {
+                    progress_callback: (p) => {
+                        if (p.status === 'downloading' || p.status === 'progress') {
+                            const pct = p.total ? Math.round((p.loaded / p.total) * 100) : 0;
+                            setBanner('loading-progress', '');
+                            setProgress(pct, `Model indiriliyor… %${pct}`);
+                        } else if (p.status === 'loading') {
+                            setBanner('', 'Model belleğe yükleniyor…');
+                        }
+                    }
+                };
+
+                [model, processor] = await Promise.all([
+                    AutoModel.from_pretrained(MODEL_ID, { ...opts }),
+                    AutoProcessor.from_pretrained(MODEL_ID, { ...opts }),
+                ]);
+
+                setBanner('ready', 'Hazır — görsel yükleyebilirsiniz.');
+                document.getElementById('uploadZone').classList.add('ready-to-use');
+
+            } catch (err) {
+                setBanner('error', 'Model yüklenemedi. Sayfayı yenileyip tekrar deneyin.');
+            }
+        }
+
+        loadModel();
+
+        // ── DOSYA DOĞRULAMA ─────────────────────────────────────────────────────────
+        function validateMagicBytes(buffer, mime) {
+            const b = new Uint8Array(buffer);
+            if (mime === 'image/jpeg') return b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF;
+            if (mime === 'image/png') return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47;
+            if (mime === 'image/webp') return b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50;
+            return false;
+        }
+
+        // ── DRAG & DROP ─────────────────────────────────────────────────────────────
+        window.onDragOver = (e) => { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); };
+        window.onDragLeave = () => { document.getElementById('uploadZone').classList.remove('drag'); };
+        window.onDrop = (e) => { e.preventDefault(); document.getElementById('uploadZone').classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) loadFile(f); };
+        window.onFileSelected = (e) => { const f = e.target.files[0]; if (f) loadFile(f); };
+
+        function loadFile(file) {
+            if (!model) { showError('Model henüz hazır değil, lütfen bekleyin.'); return; }
+            if (!ALLOWED.includes(file.type)) { showError('Lütfen JPG, PNG veya WEBP yükleyin.'); return; }
+            if (file.size > MAX_BYTES) { showError('Dosya boyutu 10 MB\'ı geçemez.'); return; }
+
+            const hr = new FileReader();
+            hr.onload = e => {
+                if (!validateMagicBytes(e.target.result, file.type)) { showError('Geçersiz dosya formatı.'); return; }
+                readAndRun(file);
+            };
+            hr.readAsArrayBuffer(file.slice(0, 12));
+        }
+
+        function readAndRun(file) {
+            origFile = file;
+            const r = new FileReader();
+            r.onload = e => {
+                document.getElementById('inputPreview').src = e.target.result;
+                document.getElementById('uploadZone').style.display = 'none';
+                document.getElementById('resultView').style.display = 'flex';
+                document.getElementById('outputCanvas').style.display = 'none';
+                document.getElementById('loadingWrap').style.display = 'flex';
+                document.getElementById('downloadBtn').disabled = true;
+                setStatus('');
+                runInference(e.target.result);
+            };
+            r.readAsDataURL(file);
+        }
+
+        // ── ÇIKARIM ─────────────────────────────────────────────────────────────────
+        async function runInference(dataUrl) {
+            try {
+                setLoadingText('Görsel hazırlanıyor…');
+                const image = await RawImage.fromURL(dataUrl);
+
+                setLoadingText('Analiz ediliyor…');
+                const { pixel_values } = await processor(image);
+
+                setLoadingText('Maske oluşturuluyor…');
+                const { output } = await model({ input: pixel_values });
+
+                setLoadingText('Arka plan kaldırılıyor…');
+                // Maskeyi görsel boyutuna ölçekle
+                const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height);
+
+                // Canvas'a uygula
+                const canvas = document.getElementById('outputCanvas');
+                canvas.width = image.width;
+                canvas.height = image.height;
+                const ctx = canvas.getContext('2d');
+
+                // Orijinal görseli çiz
+                const img = await loadImg(dataUrl);
+                ctx.drawImage(img, 0, 0);
+
+                // Alpha kanalına maskeyi uygula
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const px = imgData.data;
+                for (let i = 0; i < mask.data.length; i++) {
+                    px[i * 4 + 3] = mask.data[i];
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                resultDataUrl = canvas.toDataURL('image/png');
+
+                document.getElementById('loadingWrap').style.display = 'none';
+                canvas.style.display = 'block';
+                document.getElementById('downloadBtn').disabled = false;
+                setStatus('Hazır! Sonucu inceleyin, ardından indirin.', 'ok');
+
+            } catch (_) {
+                setStatus('İşlem sırasında bir sorun oluştu. Tekrar deneyin.', 'err');
+                document.getElementById('loadingWrap').style.display = 'none';
+            }
+        }
+
+        function loadImg(src) {
+            return new Promise((res, rej) => {
+                const img = new Image();
+                img.onload = () => res(img);
+                img.onerror = () => rej(new Error('Görsel yüklenemedi'));
+                img.src = src;
+            });
+        }
+
+        // ── YARDIMCILAR ─────────────────────────────────────────────────────────────
+        function setLoadingText(t) { document.getElementById('loadingText').textContent = t; }
+        function setStatus(msg, type) { const el = document.getElementById('statusMsg'); el.textContent = msg; el.className = type || ''; }
+
+        function showError(msg) {
+            const banner = document.getElementById('modelBanner');
+            const prev = banner.className;
+            const prevMsg = document.getElementById('bannerText').textContent;
+            setBanner('error', msg);
+            setTimeout(() => { setBanner(prev, prevMsg); }, 4000);
+        }
+
+        window.resetAll = () => {
+            origFile = resultDataUrl = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('uploadZone').style.display = 'flex';
+            document.getElementById('resultView').style.display = 'none';
+            setStatus('');
+        };
+
+        window.downloadResult = () => {
+            if (!resultDataUrl) return;
+            const a = document.createElement('a');
+            a.href = resultDataUrl;
+            const raw = (origFile?.name || 'gorsel').replace(/\.[^.]+$/, '');
+            const safe = raw.replace(/[^a-zA-Z0-9_\-çğıöşüÇĞİÖŞÜ]/g, '_').slice(0, 64);
+            a.download = safe + '-clearcut.png';
+            a.click();
+        };
+    </script>
+</body>
+
+</html>
