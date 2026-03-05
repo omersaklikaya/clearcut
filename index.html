@@ -579,78 +579,70 @@
         <span class="footer-text">Tüm işlem cihazınızda gerçekleşir</span>
     </footer>
 
-    <!-- Transformers.js — model yönetimini, indirmeyi ve önbelleği halleder -->
+    <!-- Transformers.js v2 — tüm tarayıcılarda kararlı -->
     <script type="module">
         'use strict';
 
-        import { env, AutoModel, AutoProcessor, RawImage } from
-            'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/transformers.min.js';
-
+        const CDN = 'https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/dist/transformers.min.js';
         const MODEL_ID = 'briaai/RMBG-1.4';
         const MAX_BYTES = 10 * 1024 * 1024;
         const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
-
-        // Transformers.js — yerel modellere bakma, sadece HF CDN
-        env.allowLocalModels = false;
 
         let model = null;
         let processor = null;
         let origFile = null;
         let resultDataUrl = null;
 
-        // ── BANNER ─────────────────────────────────────────────────────────────────
+        // ── BANNER ──────────────────────────────────────────────────────────────────
         function setBanner(state, msg) {
             const el = document.getElementById('modelBanner');
             const text = document.getElementById('bannerText');
             const prog = document.getElementById('progressWrap');
-            el.className = state; // '', 'ready', 'error'
+            el.className = (state === 'ready' || state === 'error') ? state : '';
+            text.style.display = (state === 'progress') ? 'none' : '';
             text.textContent = msg;
-            text.style.display = (state === 'loading-progress') ? 'none' : '';
-            prog.className = (state === 'loading-progress') ? 'show' : '';
-            if (state !== 'loading-progress' && state !== 'ready' && state !== 'error') {
-                el.className = '';
-            }
+            prog.className = (state === 'progress') ? 'show' : '';
         }
-
         function setProgress(pct, label) {
             document.getElementById('progressFill').style.width = pct + '%';
             document.getElementById('progressLabel').textContent = label;
         }
 
-        // ── MODEL YÜKLEME ───────────────────────────────────────────────────────────
+        // ── MODEL YÜKLEME ────────────────────────────────────────────────────────────
         async function loadModel() {
             try {
                 setBanner('', 'Model yükleniyor…');
 
-                // progress_callback ile indirme ilerlemesini takip et
-                const opts = {
-                    progress_callback: (p) => {
-                        if (p.status === 'downloading' || p.status === 'progress') {
-                            const pct = p.total ? Math.round((p.loaded / p.total) * 100) : 0;
-                            setBanner('loading-progress', '');
-                            setProgress(pct, `Model indiriliyor… %${pct}`);
-                        } else if (p.status === 'loading') {
-                            setBanner('', 'Model belleğe yükleniyor…');
-                        }
+                const { env, AutoModel, AutoProcessor } = await import(CDN);
+                env.allowLocalModels = false;
+                env.useBrowserCache = true;
+
+                const progressCb = (p) => {
+                    if ((p.status === 'downloading' || p.status === 'progress') && p.total) {
+                        const pct = Math.round((p.loaded / p.total) * 100);
+                        setBanner('progress', '');
+                        setProgress(pct, `Model indiriliyor… %${pct}`);
+                    } else if (p.status === 'loading') {
+                        setBanner('', 'Model belleğe yükleniyor…');
                     }
                 };
 
                 [model, processor] = await Promise.all([
-                    AutoModel.from_pretrained(MODEL_ID, { ...opts }),
-                    AutoProcessor.from_pretrained(MODEL_ID, { ...opts }),
+                    AutoModel.from_pretrained(MODEL_ID, { progress_callback: progressCb }),
+                    AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: progressCb }),
                 ]);
 
                 setBanner('ready', 'Hazır — görsel yükleyebilirsiniz.');
                 document.getElementById('uploadZone').classList.add('ready-to-use');
 
             } catch (err) {
-                setBanner('error', 'Model yüklenemedi. Sayfayı yenileyip tekrar deneyin.');
+                setBanner('error', 'Model yüklenemedi: ' + (err?.message || err));
             }
         }
 
         loadModel();
 
-        // ── DOSYA DOĞRULAMA ─────────────────────────────────────────────────────────
+        // ── DOSYA DOĞRULAMA ──────────────────────────────────────────────────────────
         function validateMagicBytes(buffer, mime) {
             const b = new Uint8Array(buffer);
             if (mime === 'image/jpeg') return b[0] === 0xFF && b[1] === 0xD8 && b[2] === 0xFF;
@@ -659,17 +651,16 @@
             return false;
         }
 
-        // ── DRAG & DROP ─────────────────────────────────────────────────────────────
+        // ── DRAG & DROP ──────────────────────────────────────────────────────────────
         window.onDragOver = (e) => { e.preventDefault(); document.getElementById('uploadZone').classList.add('drag'); };
-        window.onDragLeave = () => { document.getElementById('uploadZone').classList.remove('drag'); };
+        window.onDragLeave = () => document.getElementById('uploadZone').classList.remove('drag');
         window.onDrop = (e) => { e.preventDefault(); document.getElementById('uploadZone').classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) loadFile(f); };
         window.onFileSelected = (e) => { const f = e.target.files[0]; if (f) loadFile(f); };
 
         function loadFile(file) {
-            if (!model) { showError('Model henüz hazır değil, lütfen bekleyin.'); return; }
+            if (!model || !processor) { showError('Model henüz hazır değil, lütfen bekleyin.'); return; }
             if (!ALLOWED.includes(file.type)) { showError('Lütfen JPG, PNG veya WEBP yükleyin.'); return; }
-            if (file.size > MAX_BYTES) { showError('Dosya boyutu 10 MB\'ı geçemez.'); return; }
-
+            if (file.size > MAX_BYTES) { showError("Dosya boyutu 10 MB'ı geçemez."); return; }
             const hr = new FileReader();
             hr.onload = e => {
                 if (!validateMagicBytes(e.target.result, file.type)) { showError('Geçersiz dosya formatı.'); return; }
@@ -694,9 +685,11 @@
             r.readAsDataURL(file);
         }
 
-        // ── ÇIKARIM ─────────────────────────────────────────────────────────────────
+        // ── ÇIKARIM ──────────────────────────────────────────────────────────────────
         async function runInference(dataUrl) {
             try {
+                const { RawImage } = await import(CDN);
+
                 setLoadingText('Görsel hazırlanıyor…');
                 const image = await RawImage.fromURL(dataUrl);
 
@@ -707,36 +700,31 @@
                 const { output } = await model({ input: pixel_values });
 
                 setLoadingText('Arka plan kaldırılıyor…');
-                // Maskeyi görsel boyutuna ölçekle
-                const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height);
+                const maskImg = await RawImage.fromTensor(output[0].mul(255).to('uint8'))
+                    .resize(image.width, image.height);
 
-                // Canvas'a uygula
                 const canvas = document.getElementById('outputCanvas');
                 canvas.width = image.width;
                 canvas.height = image.height;
                 const ctx = canvas.getContext('2d');
 
-                // Orijinal görseli çiz
                 const img = await loadImg(dataUrl);
                 ctx.drawImage(img, 0, 0);
 
-                // Alpha kanalına maskeyi uygula
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const px = imgData.data;
-                for (let i = 0; i < mask.data.length; i++) {
-                    px[i * 4 + 3] = mask.data[i];
+                for (let i = 0; i < maskImg.data.length; i++) {
+                    imgData.data[i * 4 + 3] = maskImg.data[i];
                 }
                 ctx.putImageData(imgData, 0, 0);
 
                 resultDataUrl = canvas.toDataURL('image/png');
-
                 document.getElementById('loadingWrap').style.display = 'none';
                 canvas.style.display = 'block';
                 document.getElementById('downloadBtn').disabled = false;
                 setStatus('Hazır! Sonucu inceleyin, ardından indirin.', 'ok');
 
-            } catch (_) {
-                setStatus('İşlem sırasında bir sorun oluştu. Tekrar deneyin.', 'err');
+            } catch (err) {
+                setStatus('Hata: ' + (err?.message || 'Bilinmeyen sorun.'), 'err');
                 document.getElementById('loadingWrap').style.display = 'none';
             }
         }
@@ -750,16 +738,14 @@
             });
         }
 
-        // ── YARDIMCILAR ─────────────────────────────────────────────────────────────
+        // ── YARDIMCILAR ──────────────────────────────────────────────────────────────
         function setLoadingText(t) { document.getElementById('loadingText').textContent = t; }
         function setStatus(msg, type) { const el = document.getElementById('statusMsg'); el.textContent = msg; el.className = type || ''; }
-
         function showError(msg) {
-            const banner = document.getElementById('modelBanner');
-            const prev = banner.className;
+            const prev = document.getElementById('modelBanner').className;
             const prevMsg = document.getElementById('bannerText').textContent;
             setBanner('error', msg);
-            setTimeout(() => { setBanner(prev, prevMsg); }, 4000);
+            setTimeout(() => setBanner(prev, prevMsg), 4000);
         }
 
         window.resetAll = () => {
